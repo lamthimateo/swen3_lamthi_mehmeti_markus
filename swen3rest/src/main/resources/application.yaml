@@ -10,3 +10,13 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  data:
+    web:
+      pageable:
+        max-page-size: 100   # ?size= above this is capped to 100
+
+app:
+  cors:
+    # origins (scheme://host:port) allowed to call /api/** from a browser, comma-separated
+    # 8080 = Web UI served by nginx, 5173 = local UI dev server
+    allowed-origins: http://localhost:8080,http://localhost:5173
