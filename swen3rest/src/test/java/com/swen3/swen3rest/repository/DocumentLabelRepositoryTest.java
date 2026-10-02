@@ -65,6 +65,35 @@ class DocumentLabelRepositoryTest {
         assertThat(documentLabelRepository.findByDocumentIdAndLabelId(document.getId(), label.getId())).isPresent();
     }
 
+    @Test
+    void deleteByDocumentIdRemovesOnlyThatDocumentsLinks() {
+        Document invoice = newDocument("invoice.pdf");
+        Document contract = newDocument("contract.pdf");
+
+        Label label = new Label();
+        label.setName("archive");
+        label = labelRepository.save(label);
+
+        attach(invoice, label, 1.0);
+        attach(contract, label, 1.0);
+
+        documentLabelRepository.deleteByDocumentId(invoice.getId());
+        // with the links gone, the document itself can be deleted without a foreign-key violation
+        documentRepository.deleteById(invoice.getId());
+        documentRepository.flush();
+
+        assertThat(documentRepository.findById(invoice.getId())).isEmpty();
+        assertThat(documentLabelRepository.findByDocumentIdOrderByWeightDesc(invoice.getId())).isEmpty();
+        assertThat(documentLabelRepository.findByDocumentIdOrderByWeightDesc(contract.getId())).hasSize(1);
+    }
+
+    private Document newDocument(String filename) {
+        Document document = new Document();
+        document.setFilename(filename);
+        document.setUploadDate(LocalDateTime.now());
+        return documentRepository.save(document);
+    }
+
     private void attach(Document document, Label label, double weight) {
         DocumentLabel documentLabel = new DocumentLabel();
         documentLabel.setDocument(document);

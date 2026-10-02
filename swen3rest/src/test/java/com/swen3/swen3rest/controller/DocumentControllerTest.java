@@ -1,10 +1,12 @@
 package com.swen3.swen3rest.controller;
 
 import com.swen3.swen3rest.entity.Document;
+import com.swen3.swen3rest.repository.DocumentLabelRepository;
 import com.swen3.swen3rest.repository.DocumentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
@@ -18,9 +20,12 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -28,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Web-layer tests for DocumentController: pagination of GET /api/documents and CORS.
+ * Web-layer tests for DocumentController: pagination of GET /api/documents, delete, and CORS.
  *
  * @WebMvcTest starts only the MVC layer (controller, CorsConfig, JSON, Pageable
  * resolver) without a database; the repository is replaced by a Mockito mock.
@@ -41,6 +46,9 @@ class DocumentControllerTest {
 
     @MockitoBean
     private DocumentRepository documentRepository;
+
+    @MockitoBean
+    private DocumentLabelRepository documentLabelRepository;
 
     @BeforeEach
     void setUp() {
@@ -97,6 +105,30 @@ class DocumentControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(documentRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void deleteRemovesLabelLinksBeforeDocument() throws Exception {
+        when(documentRepository.existsById(1L)).thenReturn(true);
+
+        mockMvc.perform(delete("/api/documents/1"))
+                .andExpect(status().isNoContent());
+
+        // links first, otherwise the foreign key from document_labels blocks the delete
+        InOrder order = inOrder(documentLabelRepository, documentRepository);
+        order.verify(documentLabelRepository).deleteByDocumentId(1L);
+        order.verify(documentRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteMissingDocumentReturns404() throws Exception {
+        when(documentRepository.existsById(99L)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/documents/99"))
+                .andExpect(status().isNotFound());
+
+        verify(documentLabelRepository, never()).deleteByDocumentId(anyLong());
+        verify(documentRepository, never()).deleteById(anyLong());
     }
 
     @Test

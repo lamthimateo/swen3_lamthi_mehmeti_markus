@@ -11,4 +11,7 @@ import java.util.Optional;
 public interface DocumentLabelRepository extends JpaRepository<DocumentLabel, Long> {
     List<DocumentLabel> findByDocumentIdOrderByWeightDesc(Long documentId);
     Optional<DocumentLabel> findByDocumentIdAndLabelId(Long documentId, Long labelId);
+
+    // removes all label links of a document; must run inside a transaction
+    void deleteByDocumentId(Long documentId);
 }
