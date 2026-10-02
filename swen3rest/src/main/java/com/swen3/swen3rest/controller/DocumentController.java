@@ -2,12 +2,14 @@ package com.swen3.swen3rest.controller;
 
 import com.swen3.swen3rest.dto.PageResponse;
 import com.swen3.swen3rest.entity.Document;
+import com.swen3.swen3rest.repository.DocumentLabelRepository;
 import com.swen3.swen3rest.repository.DocumentRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,9 +24,12 @@ public class DocumentController {
     private static final Set<String> SORTABLE_FIELDS = Set.of("id", "filename", "uploadDate");
 
     private final DocumentRepository documentRepository;
+    private final DocumentLabelRepository documentLabelRepository;
 
-    public DocumentController(DocumentRepository documentRepository) {
+    public DocumentController(DocumentRepository documentRepository,
+                              DocumentLabelRepository documentLabelRepository) {
         this.documentRepository = documentRepository;
+        this.documentLabelRepository = documentLabelRepository;
     }
 
     @PostMapping
@@ -59,10 +64,13 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional          // label links and document are removed together, or not at all
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         if (!documentRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+        // document_labels has a foreign key to documents, so the links must go first
+        documentLabelRepository.deleteByDocumentId(id);
         documentRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

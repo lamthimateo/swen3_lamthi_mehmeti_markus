@@ -51,6 +51,9 @@ public class DocumentLabelController {
 
     @GetMapping
     public List<DocumentLabel> list(@PathVariable Long documentId) {
+        if (!documentRepository.existsById(documentId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "document not found");
+        }
         return documentLabelRepository.findByDocumentIdOrderByWeightDesc(documentId);
     }
 
