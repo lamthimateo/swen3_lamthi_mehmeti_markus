@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: swen3db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d swen3db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  swen3rest:
+    build:
+      context: ./swen3rest
+    container_name: swen3rest
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/swen3db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:8080,http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  swen3ui:
+    build:
+      context: ./swen3ui
+    container_name: swen3ui
+    ports:
+      - "8080:80"
+    depends_on:
+      - swen3rest
+
+volumes:
+  postgres-data:
