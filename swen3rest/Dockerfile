@@ -1,28 +1,16 @@
-# Build stage
-FROM maven:3.9-eclipse-temurin-25 AS builder
+FROM eclipse-temurin:25-jdk AS build
+WORKDIR /build
 
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+RUN ./mvnw -B dependency:go-offline
+
+COPY src/ src/
+RUN ./mvnw -B clean package -DskipTests
+
+FROM eclipse-temurin:25-jre
 WORKDIR /app
+COPY --from=build /build/target/*.jar app.jar
 
-# Copy pom.xml and download dependencies
-COPY pom.xml .
-RUN mvn dependency:go-offline
-
-# Copy source code
-COPY src ./src
-
-# Build the application
-RUN mvn clean package -DskipTests
-
-# Production stage
-FROM eclipse-temurin:25-jre-alpine
-
-WORKDIR /app
-
-# Copy JAR from builder
-COPY --from=builder /app/target/*.jar app.jar
-
-# Expose port
 EXPOSE 8081
-
-# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
