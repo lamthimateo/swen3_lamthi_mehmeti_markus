@@ -35,7 +35,7 @@ services:
       context: ./swen3ui
     container_name: swen3ui
     ports:
-      - "8080:80"
+      - "80:80"
     depends_on:
       - swen3rest
 
