@@ -39,5 +39,45 @@ services:
     depends_on:
       - swen3rest
 
+  minio:
+    image: minio/minio:latest
+    container_name: swen3-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/minio_storage
+    command: minio server /minio_storage --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: swen3-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "curl -s http://localhost:9200 | grep -q cluster_name"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   postgres-data:
+  minio-data:
+  elasticsearch-data:
