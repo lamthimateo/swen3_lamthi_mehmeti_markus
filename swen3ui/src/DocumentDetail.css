@@ -157,6 +157,40 @@
   transform: translateY(-1px);
 }
 
+/* Create Label Section */
+.create-label {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  border: 1px solid #e5e7eb;
+}
+
+.create-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.create-form .btn-primary {
+  width: 100%;
+  margin: 0.25rem 0 0 0;
+}
+
+.field-error {
+  margin: -0.25rem 0 0 0;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.create-form input[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.create-form input[aria-invalid="true"]:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
 /* Attach Label Section */
 .attach-label {
   background: white;
