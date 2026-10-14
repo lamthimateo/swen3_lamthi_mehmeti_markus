@@ -1,16 +1,38 @@
-# React + Vite
+# swen3ui
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React web UI for the SWEN3 document management system, built with Vite and served by nginx.
 
-Currently, two official plugins are available:
+## Pages
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Dashboard** (`/`): upload documents, paginated and sortable document list, view and delete.
+- **Document detail** (`/document/{id}`): document info, create labels, attach and remove labels with a weight.
 
-## React Compiler
+All API calls go to relative `/api/...` URLs.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Run
 
-## Expanding the ESLint configuration
+**With Docker** (from the repository root):
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+docker compose up --build
+```
+
+The UI is then at http://localhost/. nginx (`nginx.conf`) serves the built files and forwards `/api/` to the `swen3rest` container.
+
+**Development with live reload** (needs the REST API on `localhost:8081`, e.g. started from the IDE):
+
+```bash
+npm install
+npm run dev
+```
+
+The UI is then at http://localhost:5173. The Vite dev server (`vite.config.js`) forwards `/api` to `localhost:8081`.
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | dev server with live reload on port 5173 |
+| `npm run build` | production build into `dist/` |
+| `npm run preview` | serve the production build locally |
+| `npm run lint` | run ESLint |
