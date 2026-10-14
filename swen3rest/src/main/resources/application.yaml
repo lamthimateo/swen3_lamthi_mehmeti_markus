@@ -18,5 +18,5 @@ spring:
 app:
   cors:
     # origins (scheme://host:port) allowed to call /api/** from a browser, comma-separated
-    # 8080 = Web UI served by nginx, 5173 = local UI dev server
-    allowed-origins: http://localhost:8080,http://localhost:5173
+    # localhost = Web UI behind nginx (port 80), 5173 = local UI dev server
+    allowed-origins: http://localhost,http://localhost:5173

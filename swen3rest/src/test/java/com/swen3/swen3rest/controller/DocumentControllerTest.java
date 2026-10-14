@@ -134,10 +134,10 @@ class DocumentControllerTest {
     @Test
     void corsPreflightFromUiOriginIsAllowed() throws Exception {
         mockMvc.perform(options("/api/documents")
-                        .header("Origin", "http://localhost:8080")
+                        .header("Origin", "http://localhost:5173")
                         .header("Access-Control-Request-Method", "DELETE"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:8080"));
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
 
     @Test

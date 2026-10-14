@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
  * - Document: the entity type this repository manages
  * - Long: the type of Document's primary key (id)
  */
-@Repository
+
 public interface DocumentRepository extends JpaRepository<Document, Long> {
     // No custom methods needed yet — Sprint 1 only requires basic CRUD.
     // Custom query methods (e.g. findByFilename) can be added here later

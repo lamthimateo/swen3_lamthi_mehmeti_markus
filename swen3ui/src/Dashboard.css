@@ -80,15 +80,6 @@
 }
 
 /* Error Message */
-.error-message {
-  background-color: #fee2e2;
-  color: #991b1b;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  border-left: 4px solid #dc2626;
-  font-size: 0.95rem;
-}
 
 /* Documents Section */
 .documents-section {
@@ -104,7 +95,6 @@
   padding-bottom: 1rem;
 }
 
-.loading,
 .no-documents {
   text-align: center;
   padding: 3rem;
@@ -166,37 +156,6 @@
 }
 
 /* Action Buttons */
-.btn {
-  padding: 0.5rem 1rem;
-  margin-right: 0.5rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: inline-block;
-}
-
-.btn-primary {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
-}
-
-.btn-secondary {
-  background-color: #6b7280;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #4b5563;
-}
 
 .btn-danger {
   background-color: #ef4444;
@@ -207,11 +166,6 @@
   background-color: #dc2626;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Pagination Controls */
