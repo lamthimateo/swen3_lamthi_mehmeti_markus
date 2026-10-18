@@ -55,7 +55,7 @@ public class DocumentLabelController {
         DocumentLabel documentLabel = new DocumentLabel();
         documentLabel.setDocument(document);
         documentLabel.setLabel(label);
-        documentLabel.setWeight(weight != null ? weight : 1.0);
+        documentLabel.setWeight(weight != null ? weight : DocumentLabel.DEFAULT_WEIGHT);        
         DocumentLabel saved = documentLabelRepository.save(documentLabel);
         log.info("Attached label {} '{}' to document {} (weight {})",
                 labelId, label.getName(), documentId, saved.getWeight());

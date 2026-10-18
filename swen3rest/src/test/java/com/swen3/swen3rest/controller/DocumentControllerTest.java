@@ -19,6 +19,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockMultipartFile;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -184,6 +186,35 @@ class DocumentControllerTest {
     void corsRequestFromUnknownOriginIsRejected() throws Exception {
         mockMvc.perform(get("/api/documents").header("Origin", "http://evil.example"))
                 .andExpect(status().isForbidden());
+    }
+
+        @Test
+    void upload_savesDocumentAndPublishesOcrJob() throws Exception {
+        Document saved = new Document();
+        saved.setId(5L);
+        saved.setFilename("a.pdf");
+        saved.setUploadDate(LocalDateTime.of(2026, 10, 1, 12, 0));
+        when(documentRepository.save(any(Document.class))).thenReturn(saved);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "a.pdf", "application/pdf", "hello".getBytes());
+
+        mockMvc.perform(multipart("/api/documents").file(file))
+                .andExpect(status().isCreated());
+
+        verify(ocrJobPublisher).publish(saved);
+    }
+
+    @Test
+    void upload_emptyFile_returns400AndPublishesNothing() throws Exception {
+        MockMultipartFile empty = new MockMultipartFile(
+                "file", "empty.pdf", "application/pdf", new byte[0]);
+
+        mockMvc.perform(multipart("/api/documents").file(empty))
+                .andExpect(status().isBadRequest());
+
+        verify(documentRepository, never()).save(any(Document.class));
+        verify(ocrJobPublisher, never()).publish(any(Document.class));
     }
 
     private Pageable capturePageable() {

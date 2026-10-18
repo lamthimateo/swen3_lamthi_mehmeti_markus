@@ -13,6 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DocumentLabel {
+    public static final double DEFAULT_WEIGHT = 1.0;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,5 +30,5 @@ public class DocumentLabel {
     // relevance/confidence of this label for the document; lets us rank/prioritize labels per document,
     // and doubles as a slot for a future GenAI auto-tagging confidence score
     @Column(nullable = false)
-    private Double weight = 1.0;
+    private Double weight;
 }
