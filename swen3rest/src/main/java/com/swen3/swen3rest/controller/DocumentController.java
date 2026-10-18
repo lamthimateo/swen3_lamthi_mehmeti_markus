@@ -5,6 +5,8 @@ import com.swen3.swen3rest.entity.Document;
 import com.swen3.swen3rest.repository.DocumentLabelRepository;
 import com.swen3.swen3rest.repository.DocumentRepository;
 import com.swen3.swen3rest.messaging.OcrJobPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -21,6 +23,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/documents")
 public class DocumentController {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("id", "filename", "uploadDate");
 
@@ -39,12 +43,14 @@ public class DocumentController {
     @PostMapping
     public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
+            log.warn("Rejected upload of '{}': file is empty", file.getOriginalFilename());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "file must not be empty");
         }
         Document document = new Document();
         document.setFilename(file.getOriginalFilename());
         document.setUploadDate(LocalDateTime.now());
         Document saved = documentRepository.save(document);
+        log.info("Uploaded document {} ('{}', {} bytes)", saved.getId(), saved.getFilename(), file.getSize());
         ocrJobPublisher.publish(saved);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -55,28 +61,37 @@ public class DocumentController {
         // reject unknown sort fields with 400 instead of letting the query fail with 500
         for (Sort.Order order : pageable.getSort()) {
             if (!SORTABLE_FIELDS.contains(order.getProperty())) {
+                log.warn("Rejected document list: cannot sort by '{}'", order.getProperty());
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "cannot sort by '" + order.getProperty() + "', allowed: " + SORTABLE_FIELDS);
             }
         }
+        log.debug("Listing documents: page {}, size {}, sort {}",
+                pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         return PageResponse.from(documentRepository.findAll(pageable));
     }
 
     @GetMapping("/{id}")
     public Document get(@PathVariable Long id) {
+        log.debug("Fetching document {}", id);
         return documentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("Document {} not found", id);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND);
+                });
     }
 
     @DeleteMapping("/{id}")
     @Transactional          // label links and document are removed together, or not at all
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         if (!documentRepository.existsById(id)) {
+            log.warn("Cannot delete document {}: not found", id);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         // document_labels has a foreign key to documents, so the links must go first
         documentLabelRepository.deleteByDocumentId(id);
         documentRepository.deleteById(id);
+        log.info("Deleted document {} and its label links", id);
         return ResponseEntity.noContent().build();
     }
 }
