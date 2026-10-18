@@ -9,7 +9,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
   data:
     web:
       pageable:
@@ -27,3 +26,8 @@ app:
     allowed-origins: http://localhost,http://localhost:5173
   rabbitmq:
     ocr-queue: ocr.queue
+
+logging:
+  level:
+    com.swen3: INFO          # DEBUG also logs every read request (lists, single documents)
+    org.hibernate.SQL: INFO  # DEBUG prints every SQL statement through the logger (instead of show-sql)

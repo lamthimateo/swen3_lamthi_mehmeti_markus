@@ -6,13 +6,17 @@ import com.swen3.swen3rest.repository.DocumentLabelRepository;
 import com.swen3.swen3rest.repository.DocumentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,18 +32,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Web-layer tests for DocumentController: pagination of GET /api/documents, delete, and CORS.
+ * Web-layer tests for DocumentController: upload, pagination of GET /api/documents, delete, and CORS.
  *
  * @WebMvcTest starts only the MVC layer (controller, CorsConfig, JSON, Pageable
  * resolver) without a database; the repository is replaced by a Mockito mock.
  */
 @WebMvcTest(DocumentController.class)
+@ExtendWith(OutputCaptureExtension.class)
 class DocumentControllerTest {
 
     @Autowired
@@ -64,6 +70,36 @@ class DocumentControllerTest {
         // pretend the DB holds 41 documents in total and return one of them for any requested page
         when(documentRepository.findAll(any(Pageable.class)))
                 .thenAnswer(inv -> new PageImpl<>(List.of(document), inv.getArgument(0), 41));
+    }
+
+    @Test
+    void uploadSavesPublishesAndLogs(CapturedOutput output) throws Exception {
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> {
+            Document saved = inv.getArgument(0);
+            saved.setId(7L);
+            return saved;
+        });
+
+        mockMvc.perform(multipart("/api/documents")
+                        .file(new MockMultipartFile("file", "invoice.pdf", "application/pdf", "%PDF-1.7".getBytes())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(7));
+
+        ArgumentCaptor<Document> published = ArgumentCaptor.forClass(Document.class);
+        verify(ocrJobPublisher).publish(published.capture());
+        assertThat(published.getValue().getId()).isEqualTo(7L);
+        assertThat(output).contains("Uploaded document 7 ('invoice.pdf', 8 bytes)");
+    }
+
+    @Test
+    void uploadRejectsEmptyFileAndLogsWarning(CapturedOutput output) throws Exception {
+        mockMvc.perform(multipart("/api/documents")
+                        .file(new MockMultipartFile("file", "empty.pdf", "application/pdf", new byte[0])))
+                .andExpect(status().isBadRequest());
+
+        verify(documentRepository, never()).save(any(Document.class));
+        verify(ocrJobPublisher, never()).publish(any(Document.class));
+        assertThat(output).contains("WARN").contains("Rejected upload of 'empty.pdf': file is empty");
     }
 
     @Test
