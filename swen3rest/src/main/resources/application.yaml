@@ -13,10 +13,17 @@ spring:
   data:
     web:
       pageable:
-        max-page-size: 100   # ?size= above this is capped to 100
+        max-page-size: 100 # ?size= above this is capped to 100
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 
 app:
   cors:
     # origins (scheme://host:port) allowed to call /api/** from a browser, comma-separated
     # localhost = Web UI behind nginx (port 80), 5173 = local UI dev server
     allowed-origins: http://localhost,http://localhost:5173
+  rabbitmq:
+    ocr-queue: ocr.queue

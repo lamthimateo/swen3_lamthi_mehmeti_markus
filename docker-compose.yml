@@ -25,8 +25,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/swen3db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   swen3ui:
@@ -71,7 +74,37 @@ services:
       retries: 3
     restart: unless-stopped
 
+  ocr-worker:
+    build:
+      context: ./ocr-worker
+    container_name: swen3-ocr-worker
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: swen3-rabbitmq
+    ports:
+      - "5672:5672" # AMQP
+      - "15672:15672" # management UI (guest / guest)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   minio-data:
   elasticsearch-data:
+  rabbitmq-data:

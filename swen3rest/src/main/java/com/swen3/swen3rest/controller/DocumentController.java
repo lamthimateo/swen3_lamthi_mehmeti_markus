@@ -4,6 +4,7 @@ import com.swen3.swen3rest.dto.PageResponse;
 import com.swen3.swen3rest.entity.Document;
 import com.swen3.swen3rest.repository.DocumentLabelRepository;
 import com.swen3.swen3rest.repository.DocumentRepository;
+import com.swen3.swen3rest.messaging.OcrJobPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -25,11 +26,14 @@ public class DocumentController {
 
     private final DocumentRepository documentRepository;
     private final DocumentLabelRepository documentLabelRepository;
+    private final OcrJobPublisher ocrJobPublisher;
 
     public DocumentController(DocumentRepository documentRepository,
-                              DocumentLabelRepository documentLabelRepository) {
+                              DocumentLabelRepository documentLabelRepository,
+                              OcrJobPublisher ocrJobPublisher) {
         this.documentRepository = documentRepository;
         this.documentLabelRepository = documentLabelRepository;
+        this.ocrJobPublisher = ocrJobPublisher;
     }
 
     @PostMapping
@@ -41,6 +45,7 @@ public class DocumentController {
         document.setFilename(file.getOriginalFilename());
         document.setUploadDate(LocalDateTime.now());
         Document saved = documentRepository.save(document);
+        ocrJobPublisher.publish(saved);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 

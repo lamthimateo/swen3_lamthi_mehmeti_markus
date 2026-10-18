@@ -1,6 +1,7 @@
 package com.swen3.swen3rest.controller;
 
 import com.swen3.swen3rest.entity.Document;
+import com.swen3.swen3rest.messaging.OcrJobPublisher;
 import com.swen3.swen3rest.repository.DocumentLabelRepository;
 import com.swen3.swen3rest.repository.DocumentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +50,9 @@ class DocumentControllerTest {
 
     @MockitoBean
     private DocumentLabelRepository documentLabelRepository;
+
+    @MockitoBean
+    private OcrJobPublisher ocrJobPublisher;
 
     @BeforeEach
     void setUp() {
