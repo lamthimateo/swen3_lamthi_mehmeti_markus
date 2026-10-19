@@ -1,6 +1,9 @@
 package com.swen3.swen3rest.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -29,9 +32,12 @@ public class Document {
     @GeneratedValue(strategy = GenerationType.IDENTITY)    // DB auto-increments the id (Postgres SERIAL/IDENTITY)
     private Long id;
 
+    @NotBlank                                // checked by Hibernate before insert/update (Bean Validation)
+    @Size(max = 255)                         // matches the VARCHAR(255) column
     @Column(nullable = false)                // filename is required, can't be NULL in the DB
     private String filename;
 
+    @NotNull
     @Column(nullable = false)                // upload timestamp is required
     private LocalDateTime uploadDate;
 

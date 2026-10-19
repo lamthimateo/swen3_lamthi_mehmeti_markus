@@ -1,13 +1,12 @@
 package com.swen3.swen3rest.controller;
 
-import com.swen3.swen3rest.entity.Label;
-import com.swen3.swen3rest.repository.LabelRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.swen3.swen3rest.dto.CreateLabelRequest;
+import com.swen3.swen3rest.dto.LabelDto;
+import com.swen3.swen3rest.service.LabelService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -15,34 +14,20 @@ import java.util.List;
 @RequestMapping("/api/labels")
 public class LabelController {
 
-    private static final Logger log = LoggerFactory.getLogger(LabelController.class);
+    private final LabelService labelService;
 
-    private final LabelRepository labelRepository;
-
-    public LabelController(LabelRepository labelRepository) {
-        this.labelRepository = labelRepository;
+    public LabelController(LabelService labelService) {
+        this.labelService = labelService;
     }
 
+    // @ModelAttribute binds the query parameter ?name=... into the request record; @Valid checks its constraints
     @PostMapping
-    public ResponseEntity<Label> create(@RequestParam String name) {
-        if (name.isBlank()) {
-            log.warn("Rejected label: name is blank");
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name must not be blank");
-        }
-        if (labelRepository.findByName(name).isPresent()) {
-            log.warn("Rejected label '{}': already exists", name);
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "label already exists");
-        }
-        Label label = new Label();
-        label.setName(name);
-        Label saved = labelRepository.save(label);
-        log.info("Created label {} '{}'", saved.getId(), saved.getName());
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    public ResponseEntity<LabelDto> create(@Valid @ModelAttribute CreateLabelRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(labelService.create(request));
     }
 
     @GetMapping
-    public List<Label> list() {
-        log.debug("Listing all labels");
-        return labelRepository.findAll();
+    public List<LabelDto> list() {
+        return labelService.findAll();
     }
 }

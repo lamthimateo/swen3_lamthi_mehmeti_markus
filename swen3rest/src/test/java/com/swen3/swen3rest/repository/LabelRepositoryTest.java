@@ -28,6 +28,16 @@ class LabelRepositoryTest {
     }
 
     @Test
+    void existsByNameIgnoresCase() {
+        Label label = new Label();
+        label.setName("Invoice");
+        labelRepository.save(label);
+
+        assertThat(labelRepository.existsByNameIgnoreCase("invoice")).isTrue();
+        assertThat(labelRepository.existsByNameIgnoreCase("contract")).isFalse();
+    }
+
+    @Test
     void deletesLabel() {
         Label label = new Label();
         label.setName("contract");
