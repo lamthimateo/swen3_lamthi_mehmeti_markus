@@ -54,9 +54,7 @@ public class DocumentLabelServiceImpl implements DocumentLabelService {
         DocumentLabel documentLabel = new DocumentLabel();
         documentLabel.setDocument(document);
         documentLabel.setLabel(label);
-        if (request.weight() != null) {
-            documentLabel.setWeight(request.weight());   // otherwise the entity default of 1.0 stays
-        }
+        documentLabel.setWeight(request.weight() != null ? request.weight() : DocumentLabel.DEFAULT_WEIGHT);
         DocumentLabel saved;
         try {
             saved = documentLabelRepository.saveAndFlush(documentLabel);

@@ -15,6 +15,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DocumentLabel {
+    public static final double DEFAULT_WEIGHT = 1.0;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,5 +34,5 @@ public class DocumentLabel {
     @NotNull
     @PositiveOrZero
     @Column(nullable = false)
-    private Double weight = 1.0;
+    private Double weight;
 }
