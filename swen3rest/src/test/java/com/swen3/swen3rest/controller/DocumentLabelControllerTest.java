@@ -46,7 +46,11 @@ class DocumentLabelControllerTest {
         when(documentRepository.existsById(99L)).thenReturn(false);
 
         mockMvc.perform(get("/api/documents/99/labels"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.path").value("/api/documents/99/labels"))
+                .andExpect(jsonPath("$.message").doesNotExist());
 
         verify(documentLabelRepository, never()).findByDocumentIdOrderByWeightDesc(anyLong());
     }

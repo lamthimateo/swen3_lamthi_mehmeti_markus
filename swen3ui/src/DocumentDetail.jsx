@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiErrorMessage, requestErrorMessage } from "./apiErrors";
 import "./DocumentDetail.css";
 
 const MAX_LABEL_NAME_LENGTH = 50;
@@ -26,11 +27,17 @@ export default function DocumentDetail() {
   const fetchDocument = async () => {
     try {
       const response = await fetch(`/api/documents/${documentId}`);
-      if (!response.ok) throw new Error("Document not found");
+      if (!response.ok) {
+        throw new Error(
+          apiErrorMessage(response, "Failed to fetch document", {
+            404: "Document not found",
+          }),
+        );
+      }
       const data = await response.json();
       setDocument(data);
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Failed to fetch document"));
     }
   };
 
@@ -38,11 +45,17 @@ export default function DocumentDetail() {
   const fetchLabels = async () => {
     try {
       const response = await fetch(`/api/documents/${documentId}/labels`);
-      if (!response.ok) throw new Error("Failed to fetch labels");
+      if (!response.ok) {
+        throw new Error(
+          apiErrorMessage(response, "Failed to fetch labels", {
+            404: "Document not found",
+          }),
+        );
+      }
       const data = await response.json();
       setLabels(data);
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Failed to fetch labels"));
     }
   };
 
@@ -50,12 +63,14 @@ export default function DocumentDetail() {
   const fetchAllLabels = async () => {
     try {
       const response = await fetch("/api/labels");
-      if (!response.ok) throw new Error("Failed to fetch labels");
+      if (!response.ok) {
+        throw new Error(apiErrorMessage(response, "Failed to fetch labels"));
+      }
       const data = await response.json();
       setAllLabels(data);
       return data;
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Failed to fetch labels"));
       return [];
     }
   };
@@ -111,11 +126,12 @@ export default function DocumentDetail() {
       );
 
       if (!response.ok) {
-        if (response.status === 400)
-          throw new Error("Label name must not be blank");
-        if (response.status === 409)
-          throw new Error("A label with that name already exists");
-        throw new Error(`Could not create label (${response.status})`);
+        throw new Error(
+          apiErrorMessage(response, "Could not create label", {
+            400: "Label name must not be blank",
+            409: "A label with that name already exists",
+          }),
+        );
       }
 
       const created = await response.json();
@@ -124,7 +140,7 @@ export default function DocumentDetail() {
       // pre-select the new label so attaching it is a single click
       setSelectedLabel(String(created.id));
     } catch (err) {
-      setCreateError(err.message);
+      setCreateError(requestErrorMessage(err, "Could not create label"));
     } finally {
       setCreatingLabel(false);
     }
@@ -153,20 +169,19 @@ export default function DocumentDetail() {
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Document or label no longer exists");
-        }
-        if (response.status === 409) {
-          throw new Error("This label is already attached to the document");
-        }
-        throw new Error(`Failed to attach label (${response.status})`);
+        throw new Error(
+          apiErrorMessage(response, "Failed to attach label", {
+            404: "Document or label no longer exists",
+            409: "This label is already attached to the document",
+          }),
+        );
       }
 
       await fetchLabels();
       setSelectedLabel("");
       setSelectedWeight(1);
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Failed to attach label"));
     } finally {
       setAttachingLabel(false);
     }
@@ -181,16 +196,17 @@ export default function DocumentDetail() {
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("That label was not attached to this document");
-        }
-        throw new Error(`Failed to detach label (${response.status})`);
+        throw new Error(
+          apiErrorMessage(response, "Failed to detach label", {
+            404: "That label was not attached to this document",
+          }),
+        );
       }
 
       setError(null);
       await fetchLabels();
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Failed to detach label"));
     }
   };
 

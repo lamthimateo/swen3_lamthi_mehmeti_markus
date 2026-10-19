@@ -150,6 +150,19 @@ class DocumentControllerTest {
     }
 
     @Test
+    void unexpectedRestFailureReturnsGenericServerError() throws Exception {
+        when(documentRepository.findAll(any(Pageable.class)))
+                .thenThrow(new IllegalStateException("database details"));
+
+        mockMvc.perform(get("/api/documents"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(jsonPath("$.path").value("/api/documents"))
+                .andExpect(jsonPath("$.message").doesNotExist());
+    }
+
+    @Test
     void deleteRemovesLabelLinksBeforeDocument() throws Exception {
         when(documentRepository.existsById(1L)).thenReturn(true);
 

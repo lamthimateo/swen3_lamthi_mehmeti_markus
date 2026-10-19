@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiErrorMessage, requestErrorMessage } from "./apiErrors";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -26,10 +27,11 @@ export default function Dashboard() {
       const response = await fetch(`/api/documents?${params}`);
 
       if (!response.ok) {
-        if (response.status === 400) {
-          throw new Error("Invalid sort field or pagination parameters");
-        }
-        throw new Error(`Failed to fetch documents (${response.status})`);
+        throw new Error(
+          apiErrorMessage(response, "Failed to fetch documents", {
+            400: "Invalid sort field or pagination parameters",
+          }),
+        );
       }
 
       const data = await response.json();
@@ -37,7 +39,7 @@ export default function Dashboard() {
       setTotalPages(data.totalPages || 1);
       setPage(pageNum);
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Failed to fetch documents"));
       setDocuments([]);
     } finally {
       setLoading(false);
@@ -75,17 +77,18 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        if (response.status === 400) {
-          throw new Error("File is empty or invalid");
-        }
-        throw new Error(`Upload failed (${response.status})`);
+        throw new Error(
+          apiErrorMessage(response, "Upload failed", {
+            400: "File is empty or invalid",
+          }),
+        );
       }
 
       // Refresh the document list
       fetchDocuments(0);
       e.target.value = ""; // Reset file input
     } catch (err) {
-      setUploadError(err.message);
+      setUploadError(requestErrorMessage(err, "Upload failed"));
     } finally {
       setUploading(false);
     }
@@ -103,13 +106,13 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        throw new Error(`Delete failed (${response.status})`);
+        throw new Error(apiErrorMessage(response, "Delete failed"));
       }
 
       // Refresh the list
       fetchDocuments(page);
     } catch (err) {
-      setError(err.message);
+      setError(requestErrorMessage(err, "Delete failed"));
     }
   };
 
