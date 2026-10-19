@@ -1,6 +1,8 @@
 package com.swen3.swen3rest.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,6 +30,8 @@ public class DocumentLabel {
 
     // relevance/confidence of this label for the document; lets us rank/prioritize labels per document,
     // and doubles as a slot for a future GenAI auto-tagging confidence score
+    @NotNull
+    @PositiveOrZero
     @Column(nullable = false)
     private Double weight = 1.0;
 }

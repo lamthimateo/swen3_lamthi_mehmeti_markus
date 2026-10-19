@@ -1,6 +1,7 @@
 package com.swen3.swen3rest.repository;
 
 import com.swen3.swen3rest.entity.Document;
+import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for DocumentRepository.
@@ -44,6 +46,17 @@ class DocumentRepositoryTest {
         // Assert: it round-tripped correctly
         assertThat(found).isPresent();
         assertThat(found.get().getFilename()).isEqualTo("test.pdf");
+    }
+
+    @Test
+    void rejectsDocumentWithBlankFilename() {
+        // Bean Validation on the entity: Hibernate checks @NotBlank before the INSERT is sent
+        Document document = new Document();
+        document.setFilename("   ");
+        document.setUploadDate(LocalDateTime.now());
+
+        assertThatThrownBy(() -> documentRepository.saveAndFlush(document))
+                .isInstanceOf(ConstraintViolationException.class);
     }
 
     @Test

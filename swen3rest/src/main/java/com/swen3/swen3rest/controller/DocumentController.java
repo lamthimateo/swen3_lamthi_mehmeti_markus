@@ -1,97 +1,58 @@
 package com.swen3.swen3rest.controller;
 
+import com.swen3.swen3rest.dto.DocumentDto;
 import com.swen3.swen3rest.dto.PageResponse;
-import com.swen3.swen3rest.entity.Document;
-import com.swen3.swen3rest.repository.DocumentLabelRepository;
-import com.swen3.swen3rest.repository.DocumentRepository;
-import com.swen3.swen3rest.messaging.OcrJobPublisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.swen3.swen3rest.service.DocumentService;
+import com.swen3.swen3rest.validation.NotEmptyFile;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.time.LocalDateTime;
-import java.util.Set;
+import java.net.URI;
 
+/**
+ * HTTP layer for documents: translates requests into DocumentService calls and back.
+ * No business rules here; errors thrown by the service are mapped to status codes by ApiExceptionHandler.
+ */
 @RestController
 @RequestMapping("/api/documents")
 public class DocumentController {
 
-    private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
+    private final DocumentService documentService;
 
-    private static final Set<String> SORTABLE_FIELDS = Set.of("id", "filename", "uploadDate");
-
-    private final DocumentRepository documentRepository;
-    private final DocumentLabelRepository documentLabelRepository;
-    private final OcrJobPublisher ocrJobPublisher;
-
-    public DocumentController(DocumentRepository documentRepository,
-                              DocumentLabelRepository documentLabelRepository,
-                              OcrJobPublisher ocrJobPublisher) {
-        this.documentRepository = documentRepository;
-        this.documentLabelRepository = documentLabelRepository;
-        this.ocrJobPublisher = ocrJobPublisher;
+    public DocumentController(DocumentService documentService) {
+        this.documentService = documentService;
     }
 
     @PostMapping
-    public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            log.warn("Rejected upload of '{}': file is empty", file.getOriginalFilename());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "file must not be empty");
-        }
-        Document document = new Document();
-        document.setFilename(file.getOriginalFilename());
-        document.setUploadDate(LocalDateTime.now());
-        Document saved = documentRepository.save(document);
-        log.info("Uploaded document {} ('{}', {} bytes)", saved.getId(), saved.getFilename(), file.getSize());
-        ocrJobPublisher.publish(saved);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    public ResponseEntity<DocumentDto> upload(@RequestParam("file") @NotEmptyFile MultipartFile file) {
+        DocumentDto created = documentService.upload(file.getOriginalFilename(), file.getSize());
+        // 201 Created + Location header pointing at the new resource
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(created.id())
+                .toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping
-    public PageResponse<Document> list(
+    public PageResponse<DocumentDto> list(
             @PageableDefault(size = 20, sort = "uploadDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        // reject unknown sort fields with 400 instead of letting the query fail with 500
-        for (Sort.Order order : pageable.getSort()) {
-            if (!SORTABLE_FIELDS.contains(order.getProperty())) {
-                log.warn("Rejected document list: cannot sort by '{}'", order.getProperty());
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "cannot sort by '" + order.getProperty() + "', allowed: " + SORTABLE_FIELDS);
-            }
-        }
-        log.debug("Listing documents: page {}, size {}, sort {}",
-                pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
-        return PageResponse.from(documentRepository.findAll(pageable));
+        return documentService.findAll(pageable);
     }
 
     @GetMapping("/{id}")
-    public Document get(@PathVariable Long id) {
-        log.debug("Fetching document {}", id);
-        return documentRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Document {} not found", id);
-                    return new ResponseStatusException(HttpStatus.NOT_FOUND);
-                });
+    public DocumentDto get(@PathVariable Long id) {
+        return documentService.findById(id);
     }
 
     @DeleteMapping("/{id}")
-    @Transactional          // label links and document are removed together, or not at all
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (!documentRepository.existsById(id)) {
-            log.warn("Cannot delete document {}: not found", id);
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        }
-        // document_labels has a foreign key to documents, so the links must go first
-        documentLabelRepository.deleteByDocumentId(id);
-        documentRepository.deleteById(id);
-        log.info("Deleted document {} and its label links", id);
+        documentService.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

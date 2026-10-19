@@ -9,6 +9,14 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    # services map entities to DTOs inside their transaction, so no lazy loading happens
+    # while the response is written; keeping the session open until then is not needed
+    open-in-view: false
+  servlet:
+    multipart:
+      # same limit as nginx (client_max_body_size 50M); Spring's default of 1MB rejects most real PDFs with 413
+      max-file-size: 50MB
+      max-request-size: 50MB
   data:
     web:
       pageable:
