@@ -6,7 +6,31 @@ spring:
     port: 5672
     username: guest
     password: guest
+    listener:
+      simple:
+        # A failing message is tried 3 times (2s, then 4s apart). After that it is rejected without requeue and
+        # dropped (logged). Without this, a message that always fails would return to the queue forever.
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2.0
 
 app:
   rabbitmq:
-    ocr-queue: ocr.queue
+    ocr-queue: ocr.queue        # jobs from swen3rest
+    index-queue: index.queue    # OCR result -> indexing step (internal to this service)
+  minio:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket: documents           # bucket swen3rest stores the uploaded PDFs in
+  ocr:
+    languages: eng+deu          # installed Tesseract language packs (see Dockerfile)
+    dpi: 300
+    timeout-seconds: 120
+    ghostscript-command: gs
+    tesseract-command: tesseract
+  elasticsearch:
+    url: http://localhost:9200
+    index: documents
