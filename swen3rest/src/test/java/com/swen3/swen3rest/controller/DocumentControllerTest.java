@@ -2,9 +2,11 @@ package com.swen3.swen3rest.controller;
 
 import com.swen3.swen3rest.dto.DocumentDto;
 import com.swen3.swen3rest.dto.PageResponse;
+import com.swen3.swen3rest.search.SearchUnavailableException;
 import com.swen3.swen3rest.service.DocumentService;
 import com.swen3.swen3rest.service.exception.InvalidRequestException;
 import com.swen3.swen3rest.service.exception.NotFoundException;
+import com.swen3.swen3rest.storage.StorageException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -20,6 +22,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -27,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -62,7 +66,8 @@ class DocumentControllerTest {
 
     @Test
     void uploadReturns201WithLocationAndDocument() throws Exception {
-        when(documentService.upload("invoice.pdf", 8)).thenReturn(INVOICE);
+        when(documentService.upload(eq("invoice.pdf"), eq(8L), eq("application/pdf"), any(InputStream.class)))
+                .thenReturn(INVOICE);
 
         mockMvc.perform(multipart("/api/documents")
                         .file(new MockMultipartFile("file", "invoice.pdf", "application/pdf", "%PDF-1.7".getBytes())))
@@ -81,7 +86,7 @@ class DocumentControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("file must not be empty"));
 
-        verify(documentService, never()).upload(anyString(), anyLong());
+        verify(documentService, never()).upload(anyString(), anyLong(), any(), any(InputStream.class));
         assertThat(output).contains("WARN")
                 .contains("Rejected request POST /api/documents with 400: file must not be empty");
     }
@@ -91,7 +96,67 @@ class DocumentControllerTest {
         mockMvc.perform(multipart("/api/documents"))
                 .andExpect(status().isBadRequest());
 
-        verify(documentService, never()).upload(anyString(), anyLong());
+        verify(documentService, never()).upload(anyString(), anyLong(), any(), any(InputStream.class));
+    }
+
+    @Test
+    void uploadWhenStorageIsDownReturns503WithoutInternalDetails() throws Exception {
+        when(documentService.upload(anyString(), anyLong(), any(), any(InputStream.class)))
+                .thenThrow(new StorageException("could not store '7/invoice.pdf' in MinIO", new RuntimeException("boom")));
+
+        mockMvc.perform(multipart("/api/documents")
+                        .file(new MockMultipartFile("file", "invoice.pdf", "application/pdf", "%PDF-1.7".getBytes())))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("file storage is currently unavailable"));
+    }
+
+    @Test
+    void searchReturnsTheMatchingDocuments() throws Exception {
+        when(documentService.search("hello")).thenReturn(List.of(INVOICE));
+
+        mockMvc.perform(get("/api/documents/search").param("q", "hello"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(7))
+                .andExpect(jsonPath("$[0].filename").value("invoice.pdf"));
+    }
+
+    @Test
+    void searchIsNotMistakenForADocumentId() throws Exception {
+        when(documentService.search("hello")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/documents/search").param("q", "hello"))
+                .andExpect(status().isOk());
+
+        verify(documentService, never()).findById(anyLong());
+    }
+
+    @Test
+    void searchWithoutTermReturns400() throws Exception {
+        mockMvc.perform(get("/api/documents/search"))
+                .andExpect(status().isBadRequest());
+
+        verify(documentService, never()).search(any());
+    }
+
+    @Test
+    void searchWithBlankTermReturns400ProblemDetail() throws Exception {
+        when(documentService.search("  ")).thenThrow(new InvalidRequestException("search term must not be empty"));
+
+        mockMvc.perform(get("/api/documents/search").param("q", "  "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("search term must not be empty"));
+    }
+
+    @Test
+    void searchWhenElasticsearchIsDownReturns503() throws Exception {
+        when(documentService.search("hello"))
+                .thenThrow(new SearchUnavailableException("could not reach Elasticsearch at http://elasticsearch:9200"));
+
+        mockMvc.perform(get("/api/documents/search").param("q", "hello"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.detail").value("search is currently unavailable"));
     }
 
     @Test

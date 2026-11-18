@@ -14,7 +14,7 @@ The system lets users upload documents, browse them in a paginated list, label t
 | File storage, search | MinIO (original PDFs), Elasticsearch (OCR text)                      |
 | Deployment           | Docker Compose                                                       |
 
-On upload, the API stores the document row and publishes a job message to RabbitMQ in one transaction; the worker consumes it asynchronously. The `docker-compose.yml` starts every service together.
+On upload, the API stores the file in MinIO, saves the document row and publishes a job message to RabbitMQ in one transaction; the worker consumes the message asynchronously. The search endpoint reads the text index the worker fills. The `docker-compose.yml` starts every service together.
 
 ## Architecture
 
@@ -41,11 +41,13 @@ Open point: the job is published before the transaction commits. If RabbitMQ is 
 
 ## Components
 
-**swen3rest** (port 8081) is the REST API, built in layers: controller (HTTP only) → service (business logic, transactions) → repository (Spring Data JPA for `Document`, `Label` and `DocumentLabel`). Controllers under `/api/documents` and for labels depend on service interfaces and return DTO records; MapStruct mappers convert between entities and DTOs. The document list is paginated (default 20, maximum 100) and sortable by `id`, `filename` or `uploadDate`; unknown sort fields return 400. Deleting a document removes its label links in the same transaction. The `messaging` package holds `OcrJobMessage`, `RabbitConfig` and `OcrJobPublisher`.
+**swen3rest** (port 8081) is the REST API, built in layers: controller (HTTP only) → service (business logic, transactions) → repository (Spring Data JPA for `Document`, `Label` and `DocumentLabel`). Controllers under `/api/documents` and for labels depend on service interfaces and return DTO records; MapStruct mappers convert between entities and DTOs. The document list is paginated (default 20, maximum 100) and sortable by `id`, `filename` or `uploadDate`; unknown sort fields return 400. Deleting a document removes its label links in the same transaction. The `messaging` package holds `OcrJobMessage`, `RabbitConfig` and `OcrJobPublisher`; the `storage` package holds `FileStorage` and its MinIO implementation; the `search` package holds `DocumentSearchClient` and its Elasticsearch implementation.
 
-Upload flow: `DocumentController.upload` validates the file with the custom `@NotEmptyFile` constraint, calls `DocumentService.upload`, which saves the `Document`, publishes an `OcrJobMessage` and returns a `DocumentDto`; the controller answers `201 Created` with a `Location` header. File content is not stored yet (MinIO is planned); only metadata and the job are created.
+Upload flow: `DocumentController.upload` validates the file with the custom `@NotEmptyFile` constraint, calls `DocumentService.upload`, which saves the `Document`, publishes an `OcrJobMessage` and returns a `DocumentDto`; the controller answers `201 Created` with a `Location` header. The service saves the row (the id is needed for the file name), stores the file in MinIO under `<documentId>/<filename>` in the bucket `documents` (created on first use) and queues the OCR job; if storing or queueing fails, the row is rolled back and a stored file is removed again. Deleting a document also removes its file.
 
-Errors: services throw `NotFoundException`, `ConflictException` and `InvalidRequestException`; one `@RestControllerAdvice` (`ApiExceptionHandler`) maps them and validation failures to 404, 409 and 400 as RFC 9457 problem details and logs every error response in one place.
+Search: `GET /api/documents/search?q=term` asks Elasticsearch (`multi_match` over the OCR text and the filename), then loads the matching rows from the database. Hits whose document was deleted since are dropped, so the database stays the source of truth. A blank term returns 400.
+
+Errors: services throw `NotFoundException`, `ConflictException` and `InvalidRequestException`; an unreachable MinIO or Elasticsearch becomes `503 Service Unavailable` without internal details; one `@RestControllerAdvice` (`ApiExceptionHandler`) maps them and validation failures to 404, 409 and 400 as RFC 9457 problem details and logs every error response in one place.
 
 The service layer, the exception handler and the OCR job publisher write log messages for uploads, error responses and publish failures.
 
@@ -67,7 +69,7 @@ A failing message is retried three times with a growing delay, then rejected wit
 | minio         | 9000, 9001  | Object storage for the PDFs        |
 | elasticsearch | 9200        | Full-text index of the OCR text    |
 
-The `swen3rest` and `ocr-worker` containers wait for RabbitMQ's healthcheck before starting; `swen3rest` also waits for PostgreSQL and `ocr-worker` for Elasticsearch. The worker image installs Ghostscript and Tesseract (English and German language packs).
+The `swen3rest` and `ocr-worker` containers wait for RabbitMQ's healthcheck before starting; `swen3rest` also waits for PostgreSQL and starts after MinIO, and `ocr-worker` waits for Elasticsearch. The worker image installs Ghostscript and Tesseract (English and German language packs).
 
 ## Testing strategy
 
@@ -77,6 +79,8 @@ Tests run without any external service: web-layer tests mock the data layer, and
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | Repository | `DocumentRepositoryTest`, `LabelRepositoryTest`, `DocumentLabelRepositoryTest`                                               | Spring Data JPA test slice, H2                     |
 | Service    | `DocumentServiceImplTest` and the other service tests: upload, sort validation, delete, not-found cases                      | JUnit 5, Mockito                                   |
+| Storage    | `MinioFileStorageTest` (bucket creation, failures, quiet delete), mock MinIO client                                            | JUnit 5, Mockito                                   |
+| Search     | `ElasticsearchDocumentSearchClientTest` against a local HTTP server: hit order, escaping of the term, missing index, outages  | JUnit 5, JDK `HttpServer`                          |
 | Mapper     | `MapperTest`: entity to DTO mapping                                                                                          | JUnit 5                                            |
 | Controller | `DocumentControllerTest`, `DocumentLabelControllerTest`, `LabelControllerTest`: validation, status codes, error bodies, CORS | `@WebMvcTest`, `MockMvc`, Mockito (`@MockitoBean`) |
 | Context    | `Swen3restApplicationTests.contextLoads`                                                                                     | `@SpringBootTest` with H2                          |
