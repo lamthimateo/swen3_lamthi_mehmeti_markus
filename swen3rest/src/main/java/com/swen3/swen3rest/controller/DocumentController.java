@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.util.List;
 
 /**
  * HTTP layer for documents: translates requests into DocumentService calls and back.
@@ -29,14 +32,23 @@ public class DocumentController {
     }
 
     @PostMapping
-    public ResponseEntity<DocumentDto> upload(@RequestParam("file") @NotEmptyFile MultipartFile file) {
-        DocumentDto created = documentService.upload(file.getOriginalFilename(), file.getSize());
+    public ResponseEntity<DocumentDto> upload(@RequestParam("file") @NotEmptyFile MultipartFile file) throws IOException {
+        DocumentDto created;
+        try (InputStream content = file.getInputStream()) {
+            created = documentService.upload(file.getOriginalFilename(), file.getSize(), file.getContentType(), content);
+        }
         // 201 Created + Location header pointing at the new resource
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.id())
                 .toUri();
         return ResponseEntity.created(location).body(created);
+    }
+
+    /** Full-text search in the OCR results, e.g. {@code GET /api/documents/search?q=hello}. Declared before /{id}. */
+    @GetMapping("/search")
+    public List<DocumentDto> search(@RequestParam("q") String query) {
+        return documentService.search(query);
     }
 
     @GetMapping

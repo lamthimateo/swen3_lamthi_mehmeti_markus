@@ -1,8 +1,10 @@
 package com.swen3.swen3rest.controller;
 
+import com.swen3.swen3rest.search.SearchUnavailableException;
 import com.swen3.swen3rest.service.exception.ConflictException;
 import com.swen3.swen3rest.service.exception.InvalidRequestException;
 import com.swen3.swen3rest.service.exception.NotFoundException;
+import com.swen3.swen3rest.storage.StorageException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -49,6 +51,17 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidRequestException.class)
     public ResponseEntity<Object> handleInvalidRequest(InvalidRequestException ex, WebRequest request) {
         return problem(ex, HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    // a backing service (MinIO, Elasticsearch) is down: the request was fine, so 503 rather than 500, and no internals in the detail
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<Object> handleStorageUnavailable(StorageException ex, WebRequest request) {
+        return problem(ex, HttpStatus.SERVICE_UNAVAILABLE, "file storage is currently unavailable", request);
+    }
+
+    @ExceptionHandler(SearchUnavailableException.class)
+    public ResponseEntity<Object> handleSearchUnavailable(SearchUnavailableException ex, WebRequest request) {
+        return problem(ex, HttpStatus.SERVICE_UNAVAILABLE, "search is currently unavailable", request);
     }
 
     // entity constraints, checked by Hibernate right before an insert/update (safety net behind the request checks)

@@ -34,6 +34,14 @@ app:
     allowed-origins: http://localhost,http://localhost:5173
   rabbitmq:
     ocr-queue: ocr.queue
+  minio:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket: documents          # the OCR worker reads the PDFs from the same bucket
+  elasticsearch:
+    url: http://localhost:9200
+    index: documents           # filled by the OCR worker, searched by GET /api/documents/search
 
 logging:
   level:

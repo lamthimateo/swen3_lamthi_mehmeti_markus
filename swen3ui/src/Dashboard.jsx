@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { errorMessage, log } from "./api";
+import SearchBar from "./SearchBar";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -26,10 +28,7 @@ export default function Dashboard() {
       const response = await fetch(`/api/documents?${params}`);
 
       if (!response.ok) {
-        if (response.status === 400) {
-          throw new Error("Invalid sort field or pagination parameters");
-        }
-        throw new Error(`Failed to fetch documents (${response.status})`);
+        throw new Error(await errorMessage(response, "Failed to fetch documents"));
       }
 
       const data = await response.json();
@@ -37,6 +36,7 @@ export default function Dashboard() {
       setTotalPages(data.totalPages || 1);
       setPage(pageNum);
     } catch (err) {
+      log.error("loading documents failed", err);
       setError(err.message);
       setDocuments([]);
     } finally {
@@ -75,16 +75,15 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        if (response.status === 400) {
-          throw new Error("File is empty or invalid");
-        }
-        throw new Error(`Upload failed (${response.status})`);
+        throw new Error(await errorMessage(response, "Upload failed"));
       }
+      log.info(`uploaded "${file.name}" (${file.size} bytes)`);
 
       // Refresh the document list
       fetchDocuments(0);
       e.target.value = ""; // Reset file input
     } catch (err) {
+      log.error("upload failed", err);
       setUploadError(err.message);
     } finally {
       setUploading(false);
@@ -103,12 +102,13 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        throw new Error(`Delete failed (${response.status})`);
+        throw new Error(await errorMessage(response, "Delete failed"));
       }
 
       // Refresh the list
       fetchDocuments(page);
     } catch (err) {
+      log.error(`deleting document ${id} failed`, err);
       setError(err.message);
     }
   };
@@ -143,6 +143,7 @@ export default function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>Document Manager</h1>
+        <SearchBar />
       </header>
 
       {/* Upload Section */}
